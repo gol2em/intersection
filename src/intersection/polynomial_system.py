@@ -60,8 +60,22 @@ def create_intersection_system(line: Line, hypersurface: Hypersurface,
         - 'k': number of parameters (= n-1)
         - 'line': Line object
         - 'hypersurface': Hypersurface object
-        - 'equations': List of (n-1) equation specifications
-        - 'bernstein_coeffs': List of Bernstein coefficient arrays for each coordinate
+        - 'equations': List of (n-1) equation specifications, each containing:
+            - 'hyperplane_coeffs': coefficients [a_i1, ..., a_in]
+            - 'hyperplane_d': constant term d_i
+            - 'bernstein_coeffs': Bernstein coefficients of the equation polynomial
+            - 'description': human-readable equation description
+        - 'equation_bernstein_coeffs': List of Bernstein coefficient arrays for each equation
+        - 'hypersurface_bernstein_coeffs': List of Bernstein coefficient arrays for each coordinate
+        - 'param_ranges': parameter ranges
+        - 'degree': polynomial degree
+
+    Notes
+    -----
+    The equation Bernstein coefficients are computed as:
+        For hyperplane H_i: a_i1*x_1 + ... + a_in*x_n + d_i = 0
+        The equation polynomial is: p_i(u) = a_i1*x_1(u) + ... + a_in*x_n(u) + d_i
+        Its Bernstein coefficients are: sum_j(a_ij * bern_xj) + d_i
 
     Raises
     ------
@@ -87,25 +101,49 @@ def create_intersection_system(line: Line, hypersurface: Hypersurface,
         for i, h in enumerate(line.hyperplanes):
             print(f"  H{i+1}: {h}")
 
-    # Extract Bernstein coefficients for each coordinate
-    bernstein_coeffs = hypersurface.bernstein_coeffs
+    # Extract Bernstein coefficients for each coordinate of the hypersurface
+    hypersurface_bernstein_coeffs = hypersurface.bernstein_coeffs
 
     if verbose:
         print(f"\nHypersurface Bernstein coefficients:")
-        for i, bern in enumerate(bernstein_coeffs):
+        for i, bern in enumerate(hypersurface_bernstein_coeffs):
             if isinstance(bern, np.ndarray):
                 print(f"  x{i+1}(u): shape = {bern.shape}, dtype = {bern.dtype}")
             else:
                 print(f"  x{i+1}(u): {type(bern)}")
 
-    # Create equation specifications
+    # Create equation specifications and compute Bernstein coefficients of each equation
     # Each hyperplane H_i gives one equation: sum_j(a_ij * x_j(u)) + d_i = 0
+    # The Bernstein coefficients of this equation are: sum_j(a_ij * bern_xj) + d_i
     equations = []
+    equation_bernstein_coeffs = []
+
     for i, hyperplane in enumerate(line.hyperplanes):
+        # Compute Bernstein coefficients of the equation polynomial
+        # Start with the constant term d_i
+        eq_bern = np.zeros_like(hypersurface_bernstein_coeffs[0], dtype=float)
+
+        # Add linear combination: sum_j(a_ij * x_j(u))
+        for j in range(n):
+            eq_bern = eq_bern + hyperplane.coeffs[j] * hypersurface_bernstein_coeffs[j]
+
+        # Add constant term d_i to the first Bernstein coefficient (constant basis function)
+        # For Bernstein basis, the constant term affects all basis functions equally
+        # Actually, we need to add d_i * 1, where 1 in Bernstein basis is all coefficients = 1
+        # But for the equation, we just add d_i to represent the constant
+        # The proper way: d_i contributes d_i to each Bernstein coefficient
+        # No wait - the constant d_i in Bernstein basis is represented by all coefficients being d_i
+        # But we want the polynomial p(u) + d_i, so we need to add d_i in Bernstein form
+        # The constant polynomial d_i in Bernstein basis has all coefficients equal to d_i
+        eq_bern = eq_bern + hyperplane.d
+
+        equation_bernstein_coeffs.append(eq_bern)
+
         equation_spec = {
             'hyperplane_index': i,
-            'coeffs': hyperplane.coeffs,  # [a_i1, a_i2, ..., a_in]
-            'd': hyperplane.d,
+            'hyperplane_coeffs': hyperplane.coeffs,  # [a_i1, a_i2, ..., a_in]
+            'hyperplane_d': hyperplane.d,
+            'bernstein_coeffs': eq_bern,  # Bernstein coefficients of the equation polynomial
             'description': f"H{i+1}: " + " + ".join([
                 f"{hyperplane.coeffs[j]:.4f}*x{j+1}(u)" for j in range(n)
             ]) + f" + {hyperplane.d:.4f} = 0"
@@ -114,6 +152,8 @@ def create_intersection_system(line: Line, hypersurface: Hypersurface,
 
         if verbose:
             print(f"\nEquation {i+1}: {equation_spec['description']}")
+            print(f"  Bernstein coefficients shape: {eq_bern.shape}")
+            print(f"  Bernstein coefficients: {eq_bern}")
 
     system = {
         'n': n,
@@ -121,7 +161,8 @@ def create_intersection_system(line: Line, hypersurface: Hypersurface,
         'line': line,
         'hypersurface': hypersurface,
         'equations': equations,
-        'bernstein_coeffs': bernstein_coeffs,
+        'equation_bernstein_coeffs': equation_bernstein_coeffs,  # Bernstein coeffs of equations
+        'hypersurface_bernstein_coeffs': hypersurface_bernstein_coeffs,  # Original hypersurface coeffs
         'param_ranges': hypersurface.param_ranges,
         'degree': hypersurface.degree
     }
@@ -174,10 +215,37 @@ def evaluate_system(system: Dict[str, Any], *params) -> np.ndarray:
     residuals = []
     for eq_spec in system['equations']:
         # H_i: sum_j(a_ij * x_j) + d_i = 0
-        residual = np.dot(eq_spec['coeffs'], point) + eq_spec['d']
+        residual = np.dot(eq_spec['hyperplane_coeffs'], point) + eq_spec['hyperplane_d']
         residuals.append(residual)
 
     return np.array(residuals)
+
+
+def get_equation_bernstein_coeffs(system: Dict[str, Any]) -> List[np.ndarray]:
+    """
+    Get the Bernstein coefficients of the polynomial equations in the system.
+
+    This is a convenience function to extract the equation Bernstein coefficients.
+
+    Parameters
+    ----------
+    system : dict
+        System created by create_intersection_system
+
+    Returns
+    -------
+    list of np.ndarray
+        List of Bernstein coefficient arrays, one for each equation.
+        For k equations, returns a list of k arrays.
+
+    Examples
+    --------
+    >>> system = create_intersection_system(line, hypersurface)
+    >>> eq_coeffs = get_equation_bernstein_coeffs(system)
+    >>> # For 2D: eq_coeffs[0] contains coefficients of the single equation
+    >>> # For 3D: eq_coeffs[0] and eq_coeffs[1] contain coefficients of two equations
+    """
+    return system['equation_bernstein_coeffs']
 
 
 def evaluate_system_bernstein(system: Dict[str, Any], *params,
