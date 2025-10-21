@@ -1,211 +1,173 @@
 """
 Example: 3D Line-Surface Intersection
 
-This example demonstrates finding intersections between a straight line
-and a parametric surface.
+This example demonstrates the n-dimensional framework for 3D line-surface intersections.
+Shows how to create lines, surfaces, and polynomial systems.
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
-import sys
-sys.path.insert(0, 'src')
-
-from intersection import (
-    Line3D,
-    ParametricSurface,
-    compute_intersections_3d,
-    visualize_3d,
-    print_intersection_summary
-)
+from src.intersection.geometry import Hyperplane, Line, Hypersurface
+from src.intersection.polynomial_system import create_intersection_system, evaluate_system
 
 
 def example_plane():
-    """Example: Line intersecting a tilted plane."""
-    
+    """Example: Vertical line intersecting a tilted plane."""
+
     print("\n" + "=" * 70)
-    print("EXAMPLE 1: Line intersecting a tilted plane")
+    print("EXAMPLE 1: Vertical line intersecting a tilted plane")
     print("=" * 70)
-    
-    # Define parametric surface: tilted plane z = 0.5*u + 0.3*v
-    def surface_x(u, v):
-        return u
-    
-    def surface_y(u, v):
-        return v
-    
-    def surface_z(u, v):
-        return 0.5 * u + 0.3 * v
-    
-    surface = ParametricSurface(surface_x, surface_y, surface_z,
-                               u_range=(0, 2), v_range=(0, 2))
-    
-    # Define a line going through the plane
-    line = Line3D(point=(0.5, 0.5, 0), direction=(0.2, 0.3, 1))
-    
-    print("\nSurface: Tilted plane z = 0.5*u + 0.3*v")
-    print(f"Line: Through (0.5, 0.5, 0) with direction (0.2, 0.3, 1)")
-    
-    # Compute intersections
-    intersections = compute_intersections_3d(line, surface, degree=3, verbose=True)
-    
-    # Print summary
-    print_intersection_summary(intersections, dimension='3D')
-    
-    # Visualize
-    fig, ax = visualize_3d(line, surface, intersections,
-                          title="Example 1: Line-Plane Intersection")
-    plt.savefig('example_3d_plane.png', dpi=150, bbox_inches='tight')
-    print("\nVisualization saved to: example_3d_plane.png")
-    plt.show()
-    
-    return intersections
+
+    # Create tilted plane: z = 0.5*x + 0.3*y
+    print("\n--- Creating Tilted Plane ---")
+    plane = Hypersurface(
+        func=lambda u, v: np.array([u, v, 0.5*u + 0.3*v]),
+        param_ranges=[(0, 2), (0, 2)],
+        ambient_dim=3,
+        degree=3,
+        verbose=False
+    )
+    print(f"Plane: z = 0.5*x + 0.3*y, parameterized as (u, v, 0.5*u + 0.3*v)")
+    print(f"Parameter ranges: u, v ∈ [0, 2]")
+    print(f"Degree: {plane.degree}")
+
+    # Create vertical line: x=1, y=1 (parallel to z-axis)
+    print("\n--- Creating Line: x=1, y=1 ---")
+    h1 = Hyperplane(coeffs=[1, 0, 0], d=-1)  # x = 1
+    h2 = Hyperplane(coeffs=[0, 1, 0], d=-1)  # y = 1
+    line = Line([h1, h2])
+    print(f"Line: {line}")
+
+    # Create intersection system
+    print("\n--- Creating Intersection System ---")
+    system = create_intersection_system(line, plane, verbose=True)
+
+    # The intersection should be at u=1, v=1 where x=1, y=1, z=0.8
+    print("\n--- Expected Intersection ---")
+    u_int, v_int = 1.0, 1.0
+    point_int = plane.evaluate(u_int, v_int)
+    residuals_int = evaluate_system(system, u_int, v_int)
+    print(f"At (u,v)=({u_int},{v_int}): point={point_int}")
+    print(f"Residuals: {residuals_int}")
+    print(f"Residual norm: {np.linalg.norm(residuals_int):.10f}")
+
+    return system
 
 
 def example_paraboloid():
-    """Example: Line intersecting a paraboloid."""
-    
+    """Example: Vertical line intersecting a paraboloid."""
+
     print("\n" + "=" * 70)
-    print("EXAMPLE 2: Line intersecting a paraboloid")
+    print("EXAMPLE 2: Vertical line intersecting a paraboloid")
     print("=" * 70)
-    
-    # Define parametric surface: paraboloid z = u^2 + v^2
-    def surface_x(u, v):
-        return u
-    
-    def surface_y(u, v):
-        return v
-    
-    def surface_z(u, v):
-        return u**2 + v**2
-    
-    surface = ParametricSurface(surface_x, surface_y, surface_z,
-                               u_range=(-1, 1), v_range=(-1, 1))
-    
-    # Define a vertical line
-    line = Line3D(point=(0.3, 0.4, 0), direction=(0, 0, 1))
-    
-    print("\nSurface: Paraboloid z = u^2 + v^2")
-    print(f"Line: Vertical line through (0.3, 0.4, 0)")
-    
-    # Compute intersections
-    intersections = compute_intersections_3d(line, surface, degree=5, verbose=True)
-    
-    # Print summary
-    print_intersection_summary(intersections, dimension='3D')
-    
-    # Visualize
-    fig, ax = visualize_3d(line, surface, intersections,
-                          title="Example 2: Line-Paraboloid Intersection")
-    plt.savefig('example_3d_paraboloid.png', dpi=150, bbox_inches='tight')
-    print("\nVisualization saved to: example_3d_paraboloid.png")
-    plt.show()
-    
-    return intersections
+
+    # Create paraboloid: z = x^2 + y^2
+    print("\n--- Creating Paraboloid ---")
+    paraboloid = Hypersurface(
+        func=lambda u, v: np.array([u, v, u**2 + v**2]),
+        param_ranges=[(0, 1), (0, 1)],
+        ambient_dim=3,
+        degree=5,
+        verbose=False
+    )
+    print(f"Paraboloid: z = x^2 + y^2, parameterized as (u, v, u^2 + v^2)")
+    print(f"Parameter ranges: u, v ∈ [0, 1]")
+    print(f"Degree: {paraboloid.degree}")
+
+    # Create vertical line: x=0.5, y=0.5 (parallel to z-axis)
+    print("\n--- Creating Line: x=0.5, y=0.5 ---")
+    h1 = Hyperplane(coeffs=[1, 0, 0], d=-0.5)  # x = 0.5
+    h2 = Hyperplane(coeffs=[0, 1, 0], d=-0.5)  # y = 0.5
+    line = Line([h1, h2])
+    print(f"Line: {line}")
+
+    # Create intersection system
+    print("\n--- Creating Intersection System ---")
+    system = create_intersection_system(line, paraboloid, verbose=True)
+
+    # The intersection should be at u=0.5, v=0.5 where x=0.5, y=0.5, z=0.5
+    print("\n--- Expected Intersection ---")
+    u_int, v_int = 0.5, 0.5
+    point_int = paraboloid.evaluate(u_int, v_int)
+    residuals_int = evaluate_system(system, u_int, v_int)
+    print(f"At (u,v)=({u_int},{v_int}): point={point_int}")
+    print(f"Residuals: {residuals_int}")
+    print(f"Residual norm: {np.linalg.norm(residuals_int):.10f}")
+
+    return system
 
 
 def example_sphere():
-    """Example: Line intersecting a sphere."""
-    
-    print("\n" + "=" * 70)
-    print("EXAMPLE 3: Line intersecting a sphere")
-    print("=" * 70)
-    
-    # Define parametric surface: sphere (using spherical coordinates)
-    def surface_x(u, v):
-        # u: azimuthal angle [0, 2π]
-        # v: polar angle [0, π]
-        theta = 2 * np.pi * u
-        phi = np.pi * v
-        return np.sin(phi) * np.cos(theta)
-    
-    def surface_y(u, v):
-        theta = 2 * np.pi * u
-        phi = np.pi * v
-        return np.sin(phi) * np.sin(theta)
-    
-    def surface_z(u, v):
-        phi = np.pi * v
-        return np.cos(phi)
-    
-    surface = ParametricSurface(surface_x, surface_y, surface_z,
-                               u_range=(0, 1), v_range=(0, 1))
-    
-    # Define a line passing through the sphere
-    line = Line3D(point=(-2, 0, 0), direction=(1, 0.2, 0.1))
-    
-    print("\nSurface: Unit sphere")
-    print(f"Line: Through (-2, 0, 0) with direction (1, 0.2, 0.1)")
-    
-    # Compute intersections
-    intersections = compute_intersections_3d(line, surface, degree=6, verbose=True)
-    
-    # Print summary
-    print_intersection_summary(intersections, dimension='3D')
-    
-    # Visualize
-    fig, ax = visualize_3d(line, surface, intersections,
-                          title="Example 3: Line-Sphere Intersection")
-    plt.savefig('example_3d_sphere.png', dpi=150, bbox_inches='tight')
-    print("\nVisualization saved to: example_3d_sphere.png")
-    plt.show()
-    
-    return intersections
+    """Example: Line through center intersecting a sphere."""
 
-
-def example_saddle():
-    """Example: Line intersecting a saddle surface."""
-    
     print("\n" + "=" * 70)
-    print("EXAMPLE 4: Line intersecting a saddle surface")
+    print("EXAMPLE 3: Line through center intersecting a sphere")
     print("=" * 70)
-    
-    # Define parametric surface: saddle z = u^2 - v^2
-    def surface_x(u, v):
-        return u
-    
-    def surface_y(u, v):
-        return v
-    
-    def surface_z(u, v):
-        return u**2 - v**2
-    
-    surface = ParametricSurface(surface_x, surface_y, surface_z,
-                               u_range=(-1, 1), v_range=(-1, 1))
-    
-    # Define a diagonal line
-    line = Line3D(point=(-1, -1, 0), direction=(1, 1, 0.5))
-    
-    print("\nSurface: Saddle z = u^2 - v^2")
-    print(f"Line: Through (-1, -1, 0) with direction (1, 1, 0.5)")
-    
-    # Compute intersections
-    intersections = compute_intersections_3d(line, surface, degree=5, verbose=True)
-    
-    # Print summary
-    print_intersection_summary(intersections, dimension='3D')
-    
-    # Visualize
-    fig, ax = visualize_3d(line, surface, intersections,
-                          title="Example 4: Line-Saddle Intersection")
-    plt.savefig('example_3d_saddle.png', dpi=150, bbox_inches='tight')
-    print("\nVisualization saved to: example_3d_saddle.png")
-    plt.show()
-    
-    return intersections
+
+    # Create unit sphere using spherical coordinates
+    print("\n--- Creating Unit Sphere ---")
+    sphere = Hypersurface(
+        func=lambda u, v: np.array([
+            np.sin(np.pi*v) * np.cos(2*np.pi*u),
+            np.sin(np.pi*v) * np.sin(2*np.pi*u),
+            np.cos(np.pi*v)
+        ]),
+        param_ranges=[(0, 1), (0, 1)],
+        ambient_dim=3,
+        degree=6,
+        verbose=False
+    )
+    print(f"Sphere: unit sphere in spherical coordinates")
+    print(f"Parameter ranges: u, v ∈ [0, 1]")
+    print(f"Degree: {sphere.degree}")
+
+    # Create line through center: x=0, y=0 (z-axis)
+    print("\n--- Creating Line: x=0, y=0 (z-axis) ---")
+    h1 = Hyperplane(coeffs=[1, 0, 0], d=0)  # x = 0
+    h2 = Hyperplane(coeffs=[0, 1, 0], d=0)  # y = 0
+    line = Line([h1, h2])
+    print(f"Line: {line}")
+
+    # Create intersection system
+    print("\n--- Creating Intersection System ---")
+    system = create_intersection_system(line, sphere, verbose=True)
+
+    # The intersections should be at north pole (u=any, v=0) and south pole (u=any, v=1)
+    print("\n--- Expected Intersections ---")
+    print("North pole: v=0 => point=(0, 0, 1)")
+    u_north, v_north = 0.0, 0.0
+    point_north = sphere.evaluate(u_north, v_north)
+    residuals_north = evaluate_system(system, u_north, v_north)
+    print(f"At (u,v)=({u_north},{v_north}): point={point_north}")
+    print(f"Residuals: {residuals_north}, norm: {np.linalg.norm(residuals_north):.10f}")
+
+    print("\nSouth pole: v=1 => point=(0, 0, -1)")
+    u_south, v_south = 0.0, 1.0
+    point_south = sphere.evaluate(u_south, v_south)
+    residuals_south = evaluate_system(system, u_south, v_south)
+    print(f"At (u,v)=({u_south},{v_south}): point={point_south}")
+    print(f"Residuals: {residuals_south}, norm: {np.linalg.norm(residuals_south):.10f}")
+
+    return system
 
 
 if __name__ == "__main__":
     print("\n" + "=" * 70)
     print("3D LINE-SURFACE INTERSECTION EXAMPLES")
     print("=" * 70)
-    
+
     # Run all examples
+    print("\nRunning Example 1: Plane")
     example_plane()
+
+    print("\nRunning Example 2: Paraboloid")
     example_paraboloid()
+
+    print("\nRunning Example 3: Sphere")
     example_sphere()
-    example_saddle()
-    
+
     print("\n" + "=" * 70)
     print("ALL EXAMPLES COMPLETED")
     print("=" * 70)
+    print("\nNote: These examples demonstrate the n-dimensional framework.")
+    print("The polynomial systems are formed correctly and ready for LP method implementation.")
 

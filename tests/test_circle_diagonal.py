@@ -62,8 +62,8 @@ print(f"Polynomial degree: {system['degree']}")
 print("\n--- Equation Specification ---")
 for i, eq in enumerate(system['equations']):
     print(f"Equation {i+1}:")
-    print(f"  Hyperplane coefficients: {eq['coeffs']}")
-    print(f"  Constant term d: {eq['d']}")
+    print(f"  Hyperplane coefficients: {eq['hyperplane_coeffs']}")
+    print(f"  Constant term d: {eq['hyperplane_d']}")
     print(f"  Description: {eq['description']}")
 
 # Evaluate system at many points to find intersections
