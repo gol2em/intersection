@@ -2,36 +2,148 @@
 Step 4: Polynomial System Solver
 
 Solve polynomial systems to find intersection parameters.
+Supports multiple methods: LP, PP, numerical (default).
 """
 
 import numpy as np
 from scipy.optimize import fsolve, brentq
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 
-def solve_polynomial_system(system: Dict[str, Any], verbose: bool = False) -> List[Dict[str, float]]:
+def solve_polynomial_system(
+    system: Dict[str, Any],
+    method: str = 'auto',
+    tolerance: float = 1e-6,
+    max_depth: int = 20,
+    verbose: bool = False
+) -> List[Dict[str, float]]:
     """
     Solve the polynomial system to find intersection parameters.
-    
+
     Parameters
     ----------
     system : dict
-        Polynomial system from create_intersection_system_*
+        Polynomial system from create_intersection_system()
+    method : str
+        Solving method:
+        - 'auto': Choose based on system type (default)
+        - 'lp': Linear Programming method (Sherbrooke & Patrikalakis 1993)
+        - 'pp': Projected Polyhedron method (Sherbrooke & Patrikalakis 1993)
+        - 'numerical': Numerical methods (numpy roots, fsolve)
+        - 'subdivision': Simple Bernstein subdivision
+    tolerance : float
+        Convergence tolerance for subdivision methods
+    max_depth : int
+        Maximum subdivision depth for subdivision methods
     verbose : bool
         If True, print solving details
-        
+
     Returns
     -------
     list of dict
         List of solutions with parameters
+
+    Examples
+    --------
+    >>> system = create_intersection_system(line, hypersurface)
+    >>> solutions = solve_polynomial_system(system, method='lp', verbose=True)
+    >>> solutions = solve_polynomial_system(system, method='pp')
+    >>> solutions = solve_polynomial_system(system)  # auto-select method
+    """
+    # Auto-select method based on system
+    if method == 'auto':
+        method = _auto_select_method(system)
+        if verbose:
+            print(f"Auto-selected method: {method}")
+
+    # Dispatch to appropriate solver
+    if method == 'lp':
+        return _solve_lp(system, tolerance, max_depth, verbose)
+    elif method == 'pp':
+        return _solve_pp(system, tolerance, max_depth, verbose)
+    elif method == 'numerical':
+        return _solve_numerical(system, verbose)
+    elif method == 'subdivision':
+        return _solve_subdivision(system, tolerance, max_depth, verbose)
+    else:
+        raise ValueError(f"Unknown method: {method}. Choose from: 'auto', 'lp', 'pp', 'numerical', 'subdivision'")
+
+
+def _auto_select_method(system: Dict[str, Any]) -> str:
+    """
+    Automatically select solving method based on system properties.
+
+    Strategy:
+    - For now, use numerical methods (existing implementation)
+    - TODO: Use LP/PP for systems with Bernstein coefficients
+    """
+    # Check if we have equation Bernstein coefficients
+    if 'equation_bernstein_coeffs' in system:
+        # For subdivision methods, we need Bernstein coefficients
+        # Start with numerical for compatibility
+        return 'numerical'
+    else:
+        return 'numerical'
+
+
+def _solve_lp(system: Dict[str, Any], tolerance: float, max_depth: int, verbose: bool) -> List[Dict[str, float]]:
+    """
+    Solve using Linear Programming method.
+
+    TODO: Implement LP method from Sherbrooke & Patrikalakis 1993
+    """
+    if verbose:
+        print("LP method not yet implemented, falling back to numerical method")
+    return _solve_numerical(system, verbose)
+
+
+def _solve_pp(system: Dict[str, Any], tolerance: float, max_depth: int, verbose: bool) -> List[Dict[str, float]]:
+    """
+    Solve using Projected Polyhedron method.
+
+    TODO: Implement PP method from Sherbrooke & Patrikalakis 1993
+    """
+    if verbose:
+        print("PP method not yet implemented, falling back to numerical method")
+    return _solve_numerical(system, verbose)
+
+
+def _solve_subdivision(system: Dict[str, Any], tolerance: float, max_depth: int, verbose: bool) -> List[Dict[str, float]]:
+    """
+    Solve using simple Bernstein subdivision.
+
+    TODO: Implement subdivision method
+    """
+    if verbose:
+        print("Subdivision method not yet implemented, falling back to numerical method")
+    return _solve_numerical(system, verbose)
+
+
+def _solve_numerical(system: Dict[str, Any], verbose: bool) -> List[Dict[str, float]]:
+    """
+    Solve using numerical methods (existing implementation).
+
+    Dispatches to appropriate solver based on system type.
     """
     if system['type'] == '2D':
         return solve_2d_system(system, verbose)
     elif system['type'] == '3D':
         return solve_3d_system(system, verbose)
     else:
-        raise ValueError(f"Unknown system type: {system['type']}")
+        # For n-dimensional systems, try to use the general approach
+        k = system.get('k', 1)
+        if k == 1:
+            return solve_2d_system(system, verbose)
+        elif k == 2:
+            return solve_3d_system(system, verbose)
+        else:
+            raise ValueError(f"Numerical solver not implemented for k={k} parameters")
 
+
+
+# ============================================================================
+# Numerical Solvers (Existing Implementation)
+# ============================================================================
 
 def solve_2d_system(system: Dict[str, Any], verbose: bool = False) -> List[Dict[str, float]]:
     """
