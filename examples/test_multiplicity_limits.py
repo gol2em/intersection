@@ -18,7 +18,7 @@ import argparse
 from math import comb
 
 
-def test_multiplicity(multiplicity, tolerance=1e-6, max_depth=None, timeout_seconds=10, verbose=False):
+def test_multiplicity(multiplicity, tolerance=1e-6, max_depth=None, verbose=False):
     """
     Test the solver on a polynomial with a root of given multiplicity.
 
@@ -57,23 +57,9 @@ def test_multiplicity(multiplicity, tolerance=1e-6, max_depth=None, timeout_seco
             crit=0.8,
             refine=False,
             verbose=verbose,
-            return_stats=True,
-            timeout_seconds=timeout_seconds
+            return_stats=True
         )
         elapsed = time.time() - start
-
-        # Check if timed out
-        if stats.get('timed_out', False):
-            if not verbose:
-                print("⏱️ TIMEOUT")
-            return {
-                'multiplicity': multiplicity,
-                'status': 'TIMEOUT',
-                'time': elapsed,
-                'boxes': stats.get('boxes_processed', 0),
-                'depth': stats.get('max_depth_used', 0),
-                'solutions': len(solutions)
-            }
 
         # Check solutions
         # For high multiplicity, we may find duplicates or no solutions
@@ -134,7 +120,6 @@ def test_multiplicity(multiplicity, tolerance=1e-6, max_depth=None, timeout_seco
 def main():
     parser = argparse.ArgumentParser(description='Test multiplicity limits of the polynomial solver')
     parser.add_argument('--max-mult', type=int, default=10, help='Maximum multiplicity to test')
-    parser.add_argument('--timeout', type=int, default=10, help='Timeout per test in seconds')
     parser.add_argument('--tolerance', type=float, default=1e-6, help='Solver tolerance')
     parser.add_argument('--max-depth', type=int, default=None, help='Max depth (None = auto-calculate)')
     parser.add_argument('--verbose', action='store_true', help='Verbose solver output')
@@ -149,7 +134,6 @@ def main():
     print()
     print(f"Tolerance: {args.tolerance}")
     print(f"Max depth: {args.max_depth if args.max_depth else 'Auto (ceil(d * log2(m)) + 5)'}")
-    print(f"Timeout per test: {args.timeout} seconds")
     print(f"Testing multiplicities: 1 to {args.max_mult}")
     print()
     
@@ -164,7 +148,6 @@ def main():
             m,
             tolerance=args.tolerance,
             max_depth=args.max_depth,
-            timeout_seconds=args.timeout,
             verbose=args.verbose
         )
         results.append(result)
