@@ -58,16 +58,17 @@ class SubdivisionSolver:
             'boxes_pruned': 0,
             'subdivisions': 0,
             'solutions_found': 0,
+            'max_depth_used': 0,
         }
         self.normalization_transform = None
     
     def solve(self,
               equation_coeffs: List[np.ndarray],
               k: int,
-              normalization_transform: Optional[Any] = None) -> List[np.ndarray]:
+              normalization_transform: Optional[Any] = None) -> tuple:
         """
         Solve polynomial system using subdivision method.
-        
+
         Parameters
         ----------
         equation_coeffs : List[np.ndarray]
@@ -76,18 +77,25 @@ class SubdivisionSolver:
             Number of parameters
         normalization_transform : Optional
             Normalization transform for denormalization
-            
+
         Returns
         -------
-        List[np.ndarray]
-            List of solution points (each is k-dimensional array)
+        tuple
+            (solutions, stats) where:
+            - solutions: List[np.ndarray] - List of solution points (each is k-dimensional array)
+            - stats: dict - Statistics dictionary with keys:
+                - 'boxes_processed': int
+                - 'boxes_pruned': int
+                - 'subdivisions': int
+                - 'solutions_found': int
+                - 'max_depth_used': int
         """
         # Reset state
         self.solutions = []
         self.stats = {key: 0 for key in self.stats.keys()}
         self.normalization_transform = normalization_transform
         self.k = k
-        
+
         if self.config.verbose:
             print(f"\n{'='*80}")
             print(f"SUBDIVISION SOLVER ({self.config.method.value.upper()} method)")
@@ -98,13 +106,13 @@ class SubdivisionSolver:
             print(f"Critical ratio: {self.config.crit}")
             print(f"Max depth: {self.config.max_depth}")
             print(f"{'='*80}\n")
-        
+
         # Initial box range in [0,1]^k
         initial_range = [(0.0, 1.0) for _ in range(k)]
-        
+
         # Solve recursively
         self._solve_recursive(equation_coeffs, initial_range, depth=0)
-        
+
         if self.config.verbose:
             print(f"\n{'='*80}")
             print(f"SOLVER STATISTICS")
@@ -113,9 +121,10 @@ class SubdivisionSolver:
             print(f"Boxes pruned: {self.stats['boxes_pruned']}")
             print(f"Subdivisions: {self.stats['subdivisions']}")
             print(f"Solutions found: {self.stats['solutions_found']}")
+            print(f"Max depth used: {self.stats['max_depth_used']}")
             print(f"{'='*80}\n")
-        
-        return self.solutions
+
+        return self.solutions, self.stats
 
     def _find_bounding_box(self,
                           coeffs_list: List[np.ndarray]) -> Optional[List[Tuple[float, float]]]:
@@ -235,13 +244,17 @@ class SubdivisionSolver:
             Current depth
         """
         self.stats['boxes_processed'] += 1
-        
+
+        # Track max depth used
+        if depth > self.stats['max_depth_used']:
+            self.stats['max_depth_used'] = depth
+
         # Print progress
         if self.config.verbose and self.stats['boxes_processed'] % 100 == 0:
             print(f"Processed {self.stats['boxes_processed']} boxes, "
                   f"found {self.stats['solutions_found']} solutions, "
                   f"pruned {self.stats['boxes_pruned']} boxes")
-        
+
         # Step 1: Apply bounding method to get tightened bounds
         # This is the ONLY step that differs between PP, LP, and Hybrid methods
         bounding_result = self._find_bounding_box(coeffs_list)
@@ -393,11 +406,18 @@ def solve_with_subdivision(
     subdivision_tolerance: float = 1e-10,
     normalization_transform: Optional[Any] = None,
     verbose: bool = False
-) -> List[np.ndarray]:
+) -> tuple:
     """
     Solve polynomial system using subdivision method.
-    
+
     Convenience function that creates solver and runs it.
+
+    Returns
+    -------
+    tuple
+        (solutions, stats) where:
+        - solutions: List[np.ndarray] - List of solution points
+        - stats: dict - Statistics dictionary
     """
     config = SolverConfig(
         method=BoundingMethod(method),
@@ -407,7 +427,7 @@ def solve_with_subdivision(
         subdivision_tolerance=subdivision_tolerance,
         verbose=verbose
     )
-    
+
     solver = SubdivisionSolver(config)
     return solver.solve(equation_coeffs, k, normalization_transform)
 

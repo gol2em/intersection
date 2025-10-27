@@ -130,16 +130,67 @@ def create_polynomial_system(
     )
 
 
+def calculate_optimal_max_depth(equation_coeffs: List[np.ndarray], k: int) -> int:
+    """
+    Calculate optimal max depth based on theoretical maximum number of roots.
+
+    For a polynomial system with maximum degree m in dimension d:
+    - Maximum number of roots: m^d (by Bezout's theorem)
+    - Each bisection along one dimension adds 1 to depth
+    - To find all m^d roots, we need at most log_2(m^d) = d * log_2(m) subdivisions
+
+    Parameters
+    ----------
+    equation_coeffs : List[np.ndarray]
+        List of Bernstein coefficient arrays
+    k : int
+        Number of parameters (dimension)
+
+    Returns
+    -------
+    int
+        Optimal maximum depth
+    """
+    import math
+
+    # Find maximum degree across all equations and all dimensions
+    max_degree = 0
+    for coeffs in equation_coeffs:
+        if k == 1:
+            degree = len(coeffs) - 1
+        else:
+            # For k-dimensional, shape is (n1+1, n2+1, ..., nk+1)
+            # Maximum degree is max of all dimensions
+            degree = max(coeffs.shape) - 1
+        max_degree = max(max_degree, degree)
+
+    if max_degree <= 1:
+        # Linear system, very shallow depth needed
+        return max(5, k)
+
+    # Theoretical max roots: m^d
+    # Max depth needed: log_2(m^d) = d * log_2(m)
+    optimal_depth = int(math.ceil(k * math.log2(max_degree)))
+
+    # Add some buffer for numerical issues and non-simple roots
+    # But cap at reasonable maximum
+    buffered_depth = optimal_depth + 5
+    capped_depth = min(buffered_depth, 100)
+
+    return capped_depth
+
+
 def solve_polynomial_system(
     system: PolynomialSystem,
     method: str = 'pp',
     tolerance: float = 1e-6,
     crit: float = 0.8,
-    max_depth: int = 30,
+    max_depth: Optional[int] = None,
     subdivision_tolerance: float = 1e-10,
     refine: bool = True,
-    verbose: bool = False
-) -> List[Dict[str, float]]:
+    verbose: bool = False,
+    return_stats: bool = False
+) -> tuple:
     """
     Solve a polynomial system.
 
@@ -159,8 +210,9 @@ def solve_polynomial_system(
         Size threshold for claiming a root in parameter space (default: 1e-6)
     crit : float
         Critical ratio for subdivision (default: 0.8)
-    max_depth : int
-        Maximum subdivision depth (default: 30)
+    max_depth : Optional[int]
+        Maximum subdivision depth. If None, automatically calculated as ceil(d * log_2(m)) + 5
+        where m is the maximum degree and d is the dimension (default: None)
     subdivision_tolerance : float
         Numerical tolerance for zero detection in function value space (default: 1e-10)
         Increase this if coefficients are very small (e.g., use 1e-7 for coeffs ~1e-6)
@@ -168,12 +220,16 @@ def solve_polynomial_system(
         Whether to refine solutions using Newton iteration (default: True)
     verbose : bool
         Print progress (default: False)
+    return_stats : bool
+        If True, return (solutions, stats). If False, return only solutions for backward compatibility (default: False)
 
     Returns
     -------
-    List[Dict[str, float]]
-        Solutions in original parameter space.
-        Each solution is a dictionary mapping parameter names to values.
+    tuple or List[Dict[str, float]]
+        If return_stats=True: (solutions, stats) where:
+            - solutions: List[Dict[str, float]] - Solutions in original parameter space
+            - stats: dict - Statistics with keys 'boxes_processed', 'boxes_pruned', 'subdivisions', 'solutions_found'
+        If return_stats=False: List[Dict[str, float]] - Solutions only (backward compatible)
 
     Examples
     --------
@@ -196,7 +252,13 @@ def solve_polynomial_system(
     """
     from .subdivision_solver import solve_with_subdivision, BoundingMethod
     from .solver import _remove_duplicate_solutions
-    
+
+    # Calculate optimal max_depth if not provided
+    if max_depth is None:
+        max_depth = calculate_optimal_max_depth(system.equation_coeffs, system.k)
+        if verbose:
+            print(f"Auto-calculated max_depth: {max_depth}")
+
     if verbose:
         print("\n" + "=" * 80)
         print("SOLVING POLYNOMIAL SYSTEM")
@@ -230,10 +292,10 @@ def solve_polynomial_system(
     # Step 2: Solve using subdivision method
     if verbose:
         print(f"\nStep 2: Finding roots using {method.upper()} subdivision method")
-    
+
     method_enum = BoundingMethod[method.upper()]
-    
-    solutions_normalized = solve_with_subdivision(
+
+    solutions_normalized, solver_stats = solve_with_subdivision(
         normalized_coeffs,
         k=system.k,
         method=method,
@@ -244,7 +306,7 @@ def solve_polynomial_system(
         normalization_transform=normalization_transform,
         verbose=verbose
     )
-    
+
     if verbose:
         print(f"\n  Found {len(solutions_normalized)} candidate solutions")
     
@@ -288,13 +350,17 @@ def solve_polynomial_system(
     
     # Remove duplicates
     solutions_original = _remove_duplicate_solutions(solutions_original, tolerance=tolerance)
-    
+
     if verbose:
         print(f"\n" + "=" * 80)
         print(f"TOTAL SOLUTIONS FOUND: {len(solutions_original)}")
         print("=" * 80)
-    
-    return solutions_original
+
+    # Return solutions with or without stats based on return_stats flag
+    if return_stats:
+        return solutions_original, solver_stats
+    else:
+        return solutions_original
 
 
 def _normalize_coefficients(
@@ -305,29 +371,63 @@ def _normalize_coefficients(
 ) -> List[np.ndarray]:
     """
     Normalize Bernstein coefficients from arbitrary parameter ranges to [0, 1]^k.
-    
-    For Bernstein polynomials, the coefficients are already in the correct form
-    for the given parameter ranges, so we just return them as-is.
-    The normalization is handled implicitly by the subdivision solver.
-    
+
+    IMPORTANT: The input Bernstein coefficients must already represent the polynomial
+    in the [0,1]^k domain. If your original polynomial is defined on a custom domain
+    [a,b]^k, you must transform it to [0,1]^k BEFORE converting to Bernstein basis.
+
+    Example for custom domain:
+    -------------------------
+    Original: f(x) = x - 5 on domain x ∈ [2, 8]
+
+    Step 1: Transform to [0,1] domain
+        Let s ∈ [0,1] where x = 2 + 6*s
+        Then f(s) = (2 + 6*s) - 5 = 6*s - 3
+
+    Step 2: Convert f(s) to Bernstein basis
+        power_coeffs = [-3, 6]
+        bern_coeffs = polynomial_nd_to_bernstein(power_coeffs, k=1)
+
+    Step 3: Create system with original param_ranges
+        system = create_polynomial_system(
+            equation_coeffs=[bern_coeffs],
+            param_ranges=[(2.0, 8.0)],  # Original domain
+            param_names=['x']
+        )
+
+    The param_ranges are used only for denormalization of solutions back to
+    the original domain. The actual solving happens in [0,1]^k space.
+
     Parameters
     ----------
     equation_coeffs : List[np.ndarray]
-        Bernstein coefficients for each equation
+        Bernstein coefficients for each equation (already in [0,1]^k domain)
     param_ranges : List[Tuple[float, float]]
-        Original parameter ranges
+        Original parameter ranges (used for denormalization only)
     k : int
         Number of parameters
     verbose : bool
         Print progress
-        
+
     Returns
     -------
     List[np.ndarray]
         Normalized coefficients (same as input for Bernstein basis)
+
+    Notes
+    -----
+    For Bernstein polynomials, the coefficients are already in the correct form
+    for [0,1]^k domain. The parameter transformation is handled by the Box class
+    during denormalization.
     """
-    # For Bernstein basis, coefficients are already normalized
-    # The parameter transformation is handled by the Box class
+    if verbose:
+        print(f"\nNormalizing coefficients:")
+        print(f"  Parameter dimension: {k}")
+        print(f"  Parameter ranges: {param_ranges}")
+        print(f"  Note: Bernstein coefficients should already be for [0,1]^k domain")
+
+    # For Bernstein basis, coefficients are already normalized to [0,1]^k
+    # The param_ranges are used only for denormalization of solutions
     return equation_coeffs
 
 

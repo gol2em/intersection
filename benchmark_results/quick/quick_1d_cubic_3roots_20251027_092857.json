@@ -1,0 +1,45 @@
+{
+  "test_name": "quick_1d_cubic_3roots",
+  "test_description": "Quick test: 1D cubic with 3 roots",
+  "timestamp": "2025-10-27T09:28:57.619920",
+  "dimension": 1,
+  "num_equations": 1,
+  "degree": 3,
+  "param_ranges": [
+    [
+      0.0,
+      1.0
+    ]
+  ],
+  "method": "pp",
+  "tolerance": 1e-06,
+  "crit": 0.8,
+  "max_depth": 30,
+  "subdivision_tolerance": 1e-10,
+  "refine": true,
+  "cpu_time": 0.0013699000046472065,
+  "boxes_processed": 4,
+  "boxes_pruned": 0,
+  "subdivisions": 0,
+  "max_depth_reached": 2,
+  "num_solutions": 1,
+  "solutions": [
+    {
+      "t": 0.14826064859428387
+    }
+  ],
+  "expected_solutions": [
+    {
+      "t": 0.2
+    },
+    {
+      "t": 0.5
+    },
+    {
+      "t": 0.8
+    }
+  ],
+  "max_residual": 1.5685629878303686e-13,
+  "max_error": 0.6517393514057161,
+  "metadata": {}
+}

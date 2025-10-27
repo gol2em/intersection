@@ -5,46 +5,17 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="3350f824-380d-4ac6-b715-37d7d71c0979" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/AugmentWebviewStateStore.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/Intersection.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/NEW_DESIGN_SUMMARY.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/N_DIMENSIONAL_DESIGN.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/PROJECT_SUMMARY.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/PYCHARM_SETUP.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/PYTEST_TESTS_SUMMARY.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/QUICKSTART.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/QUICK_REFERENCE.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/QUICK_START_ND.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SYNC_GUIDE.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/TESTING.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/examples/example_2d.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/examples/example_3d.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/intersection/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/intersection/__init___new.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/intersection/bernstein.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/intersection/bernstein_new.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/intersection/geometry.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/intersection/geometry_new.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/intersection/interpolation.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/intersection/interpolation_new.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/intersection/polynomial_system.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/intersection/solver.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/intersection/utils.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test_circle_sphere.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test_new_nd_design.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/conftest.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/test_bernstein.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/test_geometry.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/test_interpolation.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/WORKFLOW_VERIFICATION.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/examples/benchmark_examples.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/examples/test_20_roots_1e8.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/examples/test_complete_workflow.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/examples/test_domain_transformation.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/examples/test_high_degree_varying_c.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/AugmentWebviewStateStore.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/AugmentWebviewStateStore.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/intersection/bernstein.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/intersection/bernstein.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/intersection/polynomial_solver.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/intersection/polynomial_solver.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/intersection/subdivision_solver.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/intersection/subdivision_solver.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -65,24 +36,24 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Python tests.Python tests in test_polynomial_system.py.executor": "Run",
-    "Python.example_get_bernstein_coeffs.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "git-widget-placeholder": "master",
-    "ignore.virus.scanning.warn.message": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python tests.Python tests in test_polynomial_system.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python.example_get_bernstein_coeffs.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-164cda30dcd9-0af03a5fa574-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.26830.99" />
+        <option value="bundled-python-sdk-d9fa9deec7cb-d902c0275401-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-252.23892.515" />
       </set>
     </attachedChunks>
   </component>

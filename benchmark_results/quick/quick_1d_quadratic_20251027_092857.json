@@ -1,0 +1,45 @@
+{
+  "test_name": "quick_1d_quadratic",
+  "test_description": "Quick test: 1D quadratic with 2 roots",
+  "timestamp": "2025-10-27T09:28:57.607669",
+  "dimension": 1,
+  "num_equations": 1,
+  "degree": 2,
+  "param_ranges": [
+    [
+      0.0,
+      1.0
+    ]
+  ],
+  "method": "pp",
+  "tolerance": 1e-06,
+  "crit": 0.8,
+  "max_depth": 30,
+  "subdivision_tolerance": 1e-10,
+  "refine": true,
+  "cpu_time": 0.002251600002637133,
+  "boxes_processed": 7,
+  "boxes_pruned": 0,
+  "subdivisions": 1,
+  "max_depth_reached": 2,
+  "num_solutions": 2,
+  "solutions": [
+    {
+      "t": 0.3
+    },
+    {
+      "t": 0.7000000000000001
+    }
+  ],
+  "expected_solutions": [
+    {
+      "t": 0.3
+    },
+    {
+      "t": 0.7
+    }
+  ],
+  "max_residual": 3.122502256758253e-17,
+  "max_error": 1.1102230246251565e-16,
+  "metadata": {}
+}

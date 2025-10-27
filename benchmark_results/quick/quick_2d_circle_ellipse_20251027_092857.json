@@ -1,0 +1,45 @@
+{
+  "test_name": "quick_2d_circle_ellipse",
+  "test_description": "Quick test: 2D circle-ellipse intersection",
+  "timestamp": "2025-10-27T09:28:57.616610",
+  "dimension": 2,
+  "num_equations": 2,
+  "degree": 2,
+  "param_ranges": [
+    [
+      0.0,
+      1.0
+    ],
+    [
+      0.0,
+      1.0
+    ]
+  ],
+  "method": "pp",
+  "tolerance": 1e-06,
+  "crit": 0.8,
+  "max_depth": 50,
+  "subdivision_tolerance": 1e-10,
+  "refine": false,
+  "cpu_time": 0.007099399997969158,
+  "boxes_processed": 13,
+  "boxes_pruned": 1,
+  "subdivisions": 1,
+  "max_depth_reached": 3,
+  "num_solutions": 1,
+  "solutions": [
+    {
+      "x": 0.8944271773899066,
+      "y": 0.4472135965774059
+    }
+  ],
+  "expected_solutions": [
+    {
+      "x": 0.894427,
+      "y": 0.447214
+    }
+  ],
+  "max_residual": 2.3382625752299546e-08,
+  "max_error": 4.407005427946241e-07,
+  "metadata": {}
+}
