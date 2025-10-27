@@ -74,14 +74,13 @@ def _auto_select_method(system: Dict[str, Any]) -> str:
     Automatically select solving method based on system properties.
 
     Strategy:
-    - For now, use numerical methods (existing implementation)
-    - TODO: Use LP/PP for systems with Bernstein coefficients
+    - Use PP method if Bernstein coefficients are available
+    - Otherwise use numerical methods
     """
     # Check if we have equation Bernstein coefficients
     if 'equation_bernstein_coeffs' in system:
-        # For subdivision methods, we need Bernstein coefficients
-        # Start with numerical for compatibility
-        return 'numerical'
+        # Use PP method for systems with Bernstein coefficients
+        return 'pp'
     else:
         return 'numerical'
 
@@ -101,11 +100,116 @@ def _solve_pp(system: Dict[str, Any], tolerance: float, max_depth: int, verbose:
     """
     Solve using Projected Polyhedron method.
 
-    TODO: Implement PP method from Sherbrooke & Patrikalakis 1993
+    Complete workflow:
+    1. Convert to Bernstein basis and normalize (already done in system)
+    2. Use PP method to find all possible roots
+    3. (Optional) Use Newton iteration to refine each root
+    4. Return to original domain
+
+    Parameters
+    ----------
+    system : dict
+        Polynomial system with equation_bernstein_coeffs
+    tolerance : float
+        Convergence tolerance
+    max_depth : int
+        Maximum subdivision depth
+    verbose : bool
+        Print progress
+
+    Returns
+    -------
+    list of dict
+        Solutions in original parameter space
     """
+    from .subdivision_solver import solve_with_subdivision
+    from .box import Box
+
     if verbose:
-        print("PP method not yet implemented, falling back to numerical method")
-    return _solve_numerical(system, verbose)
+        print("\n" + "=" * 80)
+        print("SOLVING WITH PP METHOD")
+        print("=" * 80)
+
+    # Step 1: Get Bernstein coefficients (already normalized to [0,1]^k)
+    equation_coeffs = system['equation_bernstein_coeffs']
+    k = system['k']
+    param_ranges = system['param_ranges']
+
+    if verbose:
+        print(f"\nStep 1: System already in Bernstein basis")
+        print(f"  Number of equations: {len(equation_coeffs)}")
+        print(f"  Number of parameters: {k}")
+        print(f"  Original domain: {param_ranges}")
+        print(f"  Normalized domain: [0, 1]^{k}")
+
+    # Create normalization transform for converting back to original domain
+    normalization_transform = {
+        'original_ranges': param_ranges,
+        'normalized_ranges': [(0.0, 1.0) for _ in range(k)]
+    }
+
+    # Step 2: Use PP method to find all possible roots
+    if verbose:
+        print(f"\nStep 2: Finding roots using PP subdivision method")
+        print(f"  Tolerance: {tolerance}")
+        print(f"  Max depth: {max_depth}")
+
+    solutions_normalized = solve_with_subdivision(
+        equation_coeffs,
+        k=k,
+        method='pp',
+        tolerance=tolerance,
+        max_depth=max_depth,
+        normalization_transform=normalization_transform,
+        verbose=verbose
+    )
+
+    if verbose:
+        print(f"\n  Found {len(solutions_normalized)} candidate solutions")
+
+    # Step 3: (Optional) Refine using Newton iteration
+    if verbose:
+        print(f"\nStep 3: Refining solutions using Newton iteration")
+
+    solutions_refined = []
+    for i, sol_norm in enumerate(solutions_normalized):
+        # Refine in normalized space
+        sol_refined_norm = _refine_solution_newton(
+            system, sol_norm, max_iter=10, tol=1e-10, verbose=verbose
+        )
+
+        if sol_refined_norm is not None:
+            solutions_refined.append(sol_refined_norm)
+            if verbose:
+                print(f"  Solution {i+1}: {sol_norm} -> {sol_refined_norm}")
+        else:
+            # Keep unrefined if Newton fails
+            solutions_refined.append(sol_norm)
+            if verbose:
+                print(f"  Solution {i+1}: {sol_norm} (Newton failed, keeping unrefined)")
+
+    # Step 4: Convert back to original domain
+    if verbose:
+        print(f"\nStep 4: Converting to original parameter domain")
+
+    solutions_original = []
+    for sol_norm in solutions_refined:
+        # Convert from [0,1]^k to original parameter ranges
+        sol_orig = _denormalize_solution(sol_norm, param_ranges, k)
+        solutions_original.append(sol_orig)
+
+        if verbose:
+            print(f"  Normalized: {sol_norm} -> Original: {sol_orig}")
+
+    # Remove duplicates
+    solutions_original = _remove_duplicate_solutions(solutions_original, tolerance=tolerance)
+
+    if verbose:
+        print(f"\n" + "=" * 80)
+        print(f"TOTAL SOLUTIONS FOUND: {len(solutions_original)}")
+        print("=" * 80)
+
+    return solutions_original
 
 
 def _solve_subdivision(system: Dict[str, Any], tolerance: float, max_depth: int, verbose: bool) -> List[Dict[str, float]]:
@@ -117,6 +221,168 @@ def _solve_subdivision(system: Dict[str, Any], tolerance: float, max_depth: int,
     if verbose:
         print("Subdivision method not yet implemented, falling back to numerical method")
     return _solve_numerical(system, verbose)
+
+
+def _refine_solution_newton(
+    system: Dict[str, Any],
+    solution: np.ndarray,
+    max_iter: int = 10,
+    tol: float = 1e-10,
+    verbose: bool = False
+) -> Optional[np.ndarray]:
+    """
+    Refine a solution using Newton iteration.
+
+    For a system of equations F(x) = 0, Newton iteration is:
+        x_{n+1} = x_n - J(x_n)^{-1} * F(x_n)
+
+    where J is the Jacobian matrix.
+
+    Parameters
+    ----------
+    system : dict
+        Polynomial system
+    solution : np.ndarray
+        Initial guess (in normalized [0,1]^k space)
+    max_iter : int
+        Maximum iterations
+    tol : float
+        Convergence tolerance
+    verbose : bool
+        Print progress
+
+    Returns
+    -------
+    np.ndarray or None
+        Refined solution, or None if Newton fails
+    """
+    from .polynomial_system import evaluate_system
+
+    x = solution.copy()
+    k = len(x)
+
+    for iteration in range(max_iter):
+        # Evaluate system at current point
+        residuals = evaluate_system(system, *x)
+        residual_norm = np.linalg.norm(residuals)
+
+        if residual_norm < tol:
+            # Converged
+            return x
+
+        # Compute Jacobian numerically
+        J = np.zeros((len(residuals), k))
+        h = 1e-8
+
+        for j in range(k):
+            x_plus = x.copy()
+            x_plus[j] += h
+
+            # Clamp to [0, 1]
+            x_plus = np.clip(x_plus, 0.0, 1.0)
+
+            residuals_plus = evaluate_system(system, *x_plus)
+            J[:, j] = (residuals_plus - residuals) / h
+
+        # Solve J * delta = -residuals
+        try:
+            delta = np.linalg.solve(J, -residuals)
+        except np.linalg.LinAlgError:
+            # Singular Jacobian
+            return None
+
+        # Update
+        x = x + delta
+
+        # Clamp to [0, 1]
+        x = np.clip(x, 0.0, 1.0)
+
+    # Check final residual
+    residuals = evaluate_system(system, *x)
+    residual_norm = np.linalg.norm(residuals)
+
+    if residual_norm < tol * 10:  # Relaxed tolerance
+        return x
+    else:
+        return None
+
+
+def _denormalize_solution(
+    solution: np.ndarray,
+    param_ranges: List[tuple],
+    k: int
+) -> Dict[str, float]:
+    """
+    Convert solution from normalized [0,1]^k space to original parameter space.
+
+    Parameters
+    ----------
+    solution : np.ndarray
+        Solution in normalized space
+    param_ranges : list of tuples
+        Original parameter ranges [(min1, max1), (min2, max2), ...]
+    k : int
+        Number of parameters
+
+    Returns
+    -------
+    dict
+        Solution in original space with keys 't', 'u', 'v', etc.
+    """
+    param_names = ['t', 'u', 'v', 'w', 's'][:k]
+
+    result = {}
+    for i, name in enumerate(param_names):
+        min_val, max_val = param_ranges[i]
+        # Linear interpolation: x_orig = min + (max - min) * x_norm
+        result[name] = min_val + (max_val - min_val) * solution[i]
+
+    return result
+
+
+def _remove_duplicate_solutions(
+    solutions: List[Dict[str, float]],
+    tolerance: float = 1e-6
+) -> List[Dict[str, float]]:
+    """
+    Remove duplicate solutions.
+
+    Parameters
+    ----------
+    solutions : list of dict
+        Solutions to filter
+    tolerance : float
+        Distance threshold for considering solutions as duplicates
+
+    Returns
+    -------
+    list of dict
+        Unique solutions
+    """
+    if not solutions:
+        return []
+
+    unique = [solutions[0]]
+
+    for sol in solutions[1:]:
+        is_duplicate = False
+
+        for unique_sol in unique:
+            # Check if all parameters are close
+            all_close = True
+            for key in sol.keys():
+                if abs(sol[key] - unique_sol[key]) > tolerance:
+                    all_close = False
+                    break
+
+            if all_close:
+                is_duplicate = True
+                break
+
+        if not is_duplicate:
+            unique.append(sol)
+
+    return unique
 
 
 def _solve_numerical(system: Dict[str, Any], verbose: bool) -> List[Dict[str, float]]:

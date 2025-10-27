@@ -41,37 +41,46 @@ def polynomial_nd_to_bernstein(poly: Union[Polynomial, np.ndarray], k: int, verb
 def _polynomial_1d_to_bernstein(poly: Union[Polynomial, np.ndarray], verbose: bool = False) -> np.ndarray:
     """
     Convert 1D polynomial from power basis to Bernstein basis.
-    
+
     Power basis: p(t) = sum_{i=0}^n a_i * t^i
     Bernstein basis: p(t) = sum_{i=0}^n b_i * B_i^n(t)
     where B_i^n(t) = C(n,i) * t^i * (1-t)^(n-i)
+
+    Uses the formula: For a polynomial p(x), the Bernstein coefficients are
+    b_ν = p(ν/n) for the Bernstein polynomial approximation.
+
+    For exact conversion (when p is already a polynomial of degree ≤ n):
+    b_j = Σ_{i=j}^{n} a_i * C(i,j) * C(n-j, n-i) / C(n,j)
+
+    References
+    ----------
+    https://en.wikipedia.org/wiki/Bernstein_polynomial
+    Farouki, R. T. (2012). The Bernstein polynomial basis: A centennial retrospective.
     """
     # Extract coefficients
     if isinstance(poly, Polynomial):
         power_coeffs = poly.coef
     else:
         power_coeffs = np.array(poly)
-    
+
     n = len(power_coeffs) - 1  # degree
-    
-    # Conversion matrix from power to Bernstein basis
-    conversion_matrix = np.zeros((n + 1, n + 1))
-    
-    for i in range(n + 1):
-        for j in range(i + 1):
-            if j >= i:
-                k = j - i
-                if k <= n - i:
-                    conversion_matrix[i, j] = comb(n, i, exact=True) * comb(n - i, k, exact=True) * ((-1) ** k)
-    
-    # Convert: bernstein_coeffs = M^{-1} * power_coeffs
-    bernstein_coeffs = np.linalg.solve(conversion_matrix.T, power_coeffs)
-    
+
+    # Bernstein coefficients using the correct conversion formula
+    # The monomial t^k can be expressed as: t^k = Σ_{j=k}^{n} [C(j,k)/C(n,k)] * B_j^n(t)
+    # Therefore: b_j = Σ_{k=0}^{j} a_k * C(j,k) / C(n,k)
+    bernstein_coeffs = np.zeros(n + 1)
+
+    for j in range(n + 1):
+        sum_val = 0.0
+        for k in range(j + 1):
+            sum_val += power_coeffs[k] * comb(j, k, exact=True) / comb(n, k, exact=True)
+        bernstein_coeffs[j] = sum_val
+
     if verbose:
         print(f"1D Polynomial degree: {n}")
         print(f"Power basis coefficients: {power_coeffs}")
         print(f"Bernstein basis coefficients: {bernstein_coeffs}")
-    
+
     return bernstein_coeffs
 
 
