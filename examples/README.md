@@ -29,7 +29,15 @@ This directory contains examples and benchmarks for the polynomial system solver
 
 ### Visualizations
 
-**Visualization scripts** - Various visualization tools
+**`visualize_de_casteljau.py`** - de Casteljau subdivision visualization (Perfect for presentations!)
+- Shows control points before and after subdivision
+- Demonstrates how subdivision preserves the polynomial exactly
+- Multiple examples: quadratic, cubic, and degree 5 polynomials
+- Two visualization styles: side-by-side panels and overlay
+- Run: `uv run python examples/visualize_de_casteljau.py`
+- Output: 6 PNG files showing subdivision process
+
+**Other visualization scripts** - Various visualization tools
 - `visualize_2d_step_by_step.py` - Step-by-step 2D subdivision
 - `visualize_2d_topdown.py` - Top-down view of 2D subdivision
 - `visualize_endpoint_solution.py` - Endpoint solution visualization
