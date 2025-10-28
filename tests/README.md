@@ -1,6 +1,6 @@
 # Tests
 
-This directory contains test scripts for the intersection computation library.
+This directory contains test scripts for the polynomial system solver.
 
 ## Test Files
 
@@ -48,27 +48,27 @@ uv run python tests/test_equation_bernstein_coeffs.py
 uv run python tests/test_circle_diagonal.py
 ```
 
-### Run All Tests
+### Run All Tests with pytest
 ```bash
-# Run all test scripts
-uv run python tests/test_new_nd_design.py
-uv run python tests/test_circle_sphere.py
-uv run python tests/test_polynomial_system.py
-uv run python tests/test_equation_bernstein_coeffs.py
-uv run python tests/test_circle_diagonal.py
+# Run all pytest tests
+uv run pytest
+
+# Run with verbose output
+uv run pytest -v
+
+# Run specific test file
+uv run pytest tests/test_polynomial_system.py
 ```
 
 ## Test Organization
 
-These are **script-style tests** that print results to stdout. They are not pytest-style unit tests.
+These are **script-style tests** that print results to stdout. They are not pytest-style unit tests, but can be run individually for detailed output and debugging.
 
 **Advantages**:
 - Easy to read and understand
 - Show detailed output and intermediate results
 - Good for demonstration and debugging
 - Can generate visualizations
-
-**Future**: Consider converting to pytest format for automated testing.
 
 ## Expected Output
 
@@ -87,11 +87,19 @@ All tests should:
 - ✅ Equation Bernstein coefficients
 - ✅ Residual evaluation
 - ✅ High-degree polynomials (up to degree 12)
-- ⚠️ LP method (not yet implemented)
+- ✅ PP method (Projected Polyhedron)
+- ✅ LP method (Linear Programming)
+- ✅ Subdivision solver with automatic max depth calculation
+
+## Benchmarks
+
+For performance benchmarks comparing PP and LP methods, see:
+- `examples/benchmark_examples.py` - Comprehensive benchmark suite
+- `examples/benchmark_results.txt` - Latest benchmark results
 
 ## Notes
 
-- Tests use the `src.intersection` module
+- Tests use the `intersection` module
 - Some tests generate plots (e.g., `test_circle_diagonal.py`)
 - All tests validate against analytical solutions where possible
-
+- For usage examples, see `examples/usage_example.py`
