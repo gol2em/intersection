@@ -2,26 +2,40 @@
 POLYNOMIAL SYSTEM SOLVER - BENCHMARK RESULTS
 ========================================================================================================================
 
-Timestamp: 2025-10-27 13:08:31
-Total benchmarks: 2
-Passed: 2/2
-Total time: 0.117s
+Timestamp: 2025-10-28 08:48:07
+Total benchmarks: 4
+Examples: 2
+Methods: PP, LP
+Passed: 3/4
+Total time: 0.150s
 Newton refinement: DISABLED (for benchmarking)
 
-==============================================================================================================
-SUMMARY TABLE
-==============================================================================================================
-Example                   Dim   Deg   Tol        Depth   Steps   Runtime(s)   Max Err      Status  
---------------------------------------------------------------------------------------------------------------
-2D: Circle-Ellipse        2     2     1.00e-06   1       13      0.096933     1.36e-08     PASS    
-1D: Wilkinson             1     20    1.00e-08   5       81      0.019350     1.74e-02     PASS    
-==============================================================================================================
+========================================================================================================================
+SUMMARY TABLE - PP METHOD
+========================================================================================================================
+Example                   Dim   Deg   Tol        Depth   Boxes    Runtime(s)   Max Err      Status  
+------------------------------------------------------------------------------------------------------------------------
+2D: Circle-Ellipse        2     2     1.00e-06   1       13       0.102751     1.36e-08     PASS    
+1D: Wilkinson             1     20    1.00e-08   5       81       0.018748     1.74e-02     PASS    
+========================================================================================================================
+Total solve time (PP): 0.121499s
+
+========================================================================================================================
+SUMMARY TABLE - LP METHOD
+========================================================================================================================
+Example                   Dim   Deg   Tol        Depth   Boxes    Runtime(s)   Max Err      Status  
+------------------------------------------------------------------------------------------------------------------------
+2D: Circle-Ellipse        2     2     1.00e-06   0       5        0.025808     1.64e-11     PASS    
+1D: Wilkinson             1     20    1.00e-08   0       1        0.000920     inf          FAIL    
+========================================================================================================================
+Total solve time (LP): 0.026728s
+
 
 ========================================================================================================================
 DETAILED RESULTS
 ========================================================================================================================
 
-[1] 2D: Circle-Ellipse
+2D: Circle-Ellipse
 --------------------------------------------------------------------------------
   Description: Circle x^2+y^2=1 and Ellipse x^2/4+4y^2=1 on [0,1]×[0,1]
 
@@ -29,28 +43,31 @@ DETAILED RESULTS
     Dimension: 2D
     Degree: 2
     Tolerance: 1.00e-06
-
-  Results:
     Expected solutions: 1
+
+  Method: PP
     Found solutions: 1
     Success: PASS
-
-  Performance:
-    Setup time: 0.000129s
-    Solve time (runtime): 0.096933s
-    Total time: 0.097063s
-
-  Solver Statistics:
-    Steps (boxes processed): 13
+    Solve time: 0.102751s
+    Boxes processed: 13
     Boxes pruned: 1
     Subdivisions: 1
     Max depth used: 1
-
-  Accuracy:
     Max error: 1.361001e-08
     Avg error: 7.343729e-09
 
-[2] 1D: Wilkinson
+  Method: LP
+    Found solutions: 1
+    Success: PASS
+    Solve time: 0.025808s
+    Boxes processed: 5
+    Boxes pruned: 0
+    Subdivisions: 0
+    Max depth used: 0
+    Max error: 1.635952e-11
+    Avg error: 1.482506e-11
+
+1D: Wilkinson
 --------------------------------------------------------------------------------
   Description: Wilkinson polynomial (x-1)(x-2)...(x-20) on domain [0, 25]
 
@@ -58,24 +75,27 @@ DETAILED RESULTS
     Dimension: 1D
     Degree: 20
     Tolerance: 1.00e-08
-
-  Results:
     Expected solutions: 20
+
+  Method: PP
     Found solutions: 20
     Success: PASS
-
-  Performance:
-    Setup time: 0.000630s
-    Solve time (runtime): 0.019350s
-    Total time: 0.019981s
-
-  Solver Statistics:
-    Steps (boxes processed): 81
+    Solve time: 0.018748s
+    Boxes processed: 81
     Boxes pruned: 2
     Subdivisions: 21
     Max depth used: 5
-
-  Accuracy:
     Max error: 1.744674e-02
     Avg error: 3.618296e-03
+
+  Method: LP
+    Found solutions: 0
+    Success: FAIL
+    Solve time: 0.000920s
+    Boxes processed: 1
+    Boxes pruned: 1
+    Subdivisions: 0
+    Max depth used: 0
+    Max error: inf
+    Avg error: inf
 

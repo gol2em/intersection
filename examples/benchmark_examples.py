@@ -27,6 +27,7 @@ from typing import List, Dict, Any, Callable
 class BenchmarkResult:
     """Results from a single benchmark run."""
     name: str
+    method: str  # 'pp' or 'lp'
     dimension: int
     degree: int
     expected_solutions: int
@@ -209,36 +210,23 @@ class Example2DCircleEllipse(BenchmarkExample):
         return (max_error, avg_error, success)
 
 
-def run_benchmark(example: BenchmarkExample, verbose: bool = False) -> BenchmarkResult:
-    """Run a single benchmark example."""
-    
-    print("\n" + "=" * 80)
-    print(f"BENCHMARK: {example.name}")
-    print("=" * 80)
-    print(f"Description: {example.description}")
-    
+def run_benchmark(example: BenchmarkExample, method: str = 'pp', verbose: bool = False) -> BenchmarkResult:
+    """Run a single benchmark example with specified method."""
+
     # Setup
-    print("\nSetting up problem...")
     setup_start = time.time()
     config = example.setup()
     setup_time = time.time() - setup_start
-    
+
     system = config['system']
     expected_roots = config['expected_roots']
     tolerance = config['tolerance']
-    
-    print(f"  Dimension: {system.k}D")
-    print(f"  Degree: {system.degree}")
-    print(f"  Expected solutions: {len(expected_roots)}")
-    print(f"  Tolerance: {tolerance:.2e}")
-    print(f"  Setup time: {setup_time:.3f}s")
-    
+
     # Solve
-    print("\nSolving...")
     solve_start = time.time()
     solutions, solver_stats = solve_polynomial_system(
         system,
-        method='pp',
+        method=method,
         tolerance=config['tolerance'],
         max_depth=config.get('max_depth', 30),
         crit=config.get('crit', 0.8),
@@ -253,21 +241,14 @@ def run_benchmark(example: BenchmarkExample, verbose: bool = False) -> Benchmark
     subdivisions = solver_stats.get('subdivisions', 0)
     boxes_pruned = solver_stats.get('boxes_pruned', 0)
     max_depth_used = solver_stats.get('max_depth_used', 0)
-    
-    print(f"  Solve time: {solve_time:.3f}s")
-    print(f"  Solutions found: {len(solutions)}")
-    
+
     # Verify
-    print("\nVerifying...")
     max_error, avg_error, success = example.verify(solutions, expected_roots)
-    
-    print(f"  Max error: {max_error:.2e}")
-    print(f"  Avg error: {avg_error:.2e}")
-    print(f"  Success: {'✅' if success else '❌'}")
-    
+
     # Create result
     result = BenchmarkResult(
         name=example.name,
+        method=method.upper(),
         dimension=system.k,
         degree=system.degree,
         expected_solutions=len(expected_roots),
@@ -288,61 +269,94 @@ def run_benchmark(example: BenchmarkExample, verbose: bool = False) -> Benchmark
     return result
 
 
-def print_summary_table(results: List[BenchmarkResult]):
-    """Print a summary table of all benchmark results."""
+def print_summary_table(results: List[BenchmarkResult], method: str):
+    """Print a summary table for a specific method."""
 
-    print("\n" + "=" * 110)
-    print("BENCHMARK SUMMARY")
-    print("=" * 110)
+    print("\n" + "=" * 120)
+    print(f"BENCHMARK SUMMARY - {method.upper()} METHOD")
+    print("=" * 120)
 
     # Header
-    print(f"{'Example':<25} {'Dim':<5} {'Deg':<5} {'Tol':<10} {'Depth':<7} {'Steps':<7} {'Runtime(s)':<12} {'Max Err':<12} {'Status':<8}")
-    print("-" * 110)
+    print(f"{'Example':<25} {'Dim':<5} {'Deg':<5} {'Tol':<10} {'Depth':<7} {'Boxes':<8} {'Runtime(s)':<12} {'Max Err':<12} {'Status':<8}")
+    print("-" * 120)
+
+    # Filter results for this method
+    method_results = [r for r in results if r.method == method.upper()]
 
     # Rows
-    for r in results:
+    for r in method_results:
         status = "✅ PASS" if r.success else "❌ FAIL"
         print(f"{r.name:<25} {r.dimension:<5} {r.degree:<5} {r.tolerance:<10.2e} "
-              f"{r.max_depth_used:<7} {r.boxes_processed:<7} {r.solve_time:<12.6f} "
+              f"{r.max_depth_used:<7} {r.boxes_processed:<8} {r.solve_time:<12.6f} "
               f"{r.max_error:<12.2e} {status:<8}")
 
-    print("=" * 110)
+    print("=" * 120)
 
     # Overall statistics
-    total_time = sum(r.total_time for r in results)
-    passed = sum(1 for r in results if r.success)
-    total = len(results)
+    total_time = sum(r.solve_time for r in method_results)
+    passed = sum(1 for r in method_results if r.success)
+    total = len(method_results)
 
     print(f"\nTotal benchmarks: {total}")
     print(f"Passed: {passed}/{total} ({passed/total*100:.1f}%)")
-    print(f"Total time: {total_time:.6f}s")
-    print("=" * 110)
+    print(f"Total solve time: {total_time:.6f}s")
+    print("=" * 120)
 
 
 def main():
     """Run all benchmarks."""
-    
+
     print("=" * 80)
     print("POLYNOMIAL SYSTEM SOLVER - BENCHMARK SUITE")
     print("=" * 80)
-    
+
     # Define all benchmark examples
     examples = [
         Example2DCircleEllipse(),  # 2D Circle-Ellipse intersection
         Example1DWilkinson(),      # Wilkinson polynomial
     ]
-    
-    print(f"\nRunning {len(examples)} benchmark examples...")
-    
+
+    # Define methods to test
+    methods = ['pp', 'lp']
+
+    print(f"\nRunning {len(examples)} examples with {len(methods)} methods...")
+    print(f"Examples: {', '.join(e.name for e in examples)}")
+    print(f"Methods: {', '.join(m.upper() for m in methods)}")
+
     # Run benchmarks
     results = []
-    for i, example in enumerate(examples, 1):
-        print(f"\n[{i}/{len(examples)}]")
-        result = run_benchmark(example, verbose=False)
-        results.append(result)
-    
-    # Print summary
-    print_summary_table(results)
+    total_runs = len(examples) * len(methods)
+    run_count = 0
+
+    for example in examples:
+        print("\n" + "=" * 80)
+        print(f"BENCHMARK: {example.name}")
+        print("=" * 80)
+        print(f"Description: {example.description}")
+
+        # Setup once
+        config = example.setup()
+        system = config['system']
+        print(f"\n  Dimension: {system.k}D")
+        print(f"  Degree: {system.degree}")
+        print(f"  Expected solutions: {len(config['expected_roots'])}")
+        print(f"  Tolerance: {config['tolerance']:.2e}")
+
+        for method in methods:
+            run_count += 1
+            print(f"\n  [{run_count}/{total_runs}] Testing {method.upper()} method...")
+            result = run_benchmark(example, method=method, verbose=False)
+            results.append(result)
+
+            status = "✅" if result.success else "❌"
+            print(f"      Solutions: {result.found_solutions}, "
+                  f"Boxes: {result.boxes_processed}, "
+                  f"Depth: {result.max_depth_used}, "
+                  f"Time: {result.solve_time:.4f}s {status}")
+
+    # Print summary tables for each method
+    for method in methods:
+        print_summary_table(results, method)
     
     # Save results to file
     output_file = Path(__file__).parent / "benchmark_results.txt"
@@ -352,63 +366,71 @@ def main():
         f.write("=" * 120 + "\n\n")
         f.write(f"Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"Total benchmarks: {len(results)}\n")
+        f.write(f"Examples: {len(examples)}\n")
+        f.write(f"Methods: {', '.join(m.upper() for m in methods)}\n")
         f.write(f"Passed: {sum(1 for r in results if r.success)}/{len(results)}\n")
         f.write(f"Total time: {sum(r.total_time for r in results):.3f}s\n")
         f.write(f"Newton refinement: DISABLED (for benchmarking)\n")
         f.write("\n")
 
-        # Summary table
-        f.write("=" * 110 + "\n")
-        f.write("SUMMARY TABLE\n")
-        f.write("=" * 110 + "\n")
-        f.write(f"{'Example':<25} {'Dim':<5} {'Deg':<5} {'Tol':<10} {'Depth':<7} {'Steps':<7} {'Runtime(s)':<12} {'Max Err':<12} {'Status':<8}\n")
-        f.write("-" * 110 + "\n")
+        # Summary tables for each method
+        for method in methods:
+            method_results = [r for r in results if r.method == method.upper()]
 
-        for r in results:
-            status = "PASS" if r.success else "FAIL"
-            f.write(f"{r.name:<25} {r.dimension:<5} {r.degree:<5} {r.tolerance:<10.2e} "
-                    f"{r.max_depth_used:<7} {r.boxes_processed:<7} {r.solve_time:<12.6f} "
-                    f"{r.max_error:<12.2e} {status:<8}\n")
+            f.write("=" * 120 + "\n")
+            f.write(f"SUMMARY TABLE - {method.upper()} METHOD\n")
+            f.write("=" * 120 + "\n")
+            f.write(f"{'Example':<25} {'Dim':<5} {'Deg':<5} {'Tol':<10} {'Depth':<7} {'Boxes':<8} {'Runtime(s)':<12} {'Max Err':<12} {'Status':<8}\n")
+            f.write("-" * 120 + "\n")
 
-        f.write("=" * 110 + "\n\n")
+            for r in method_results:
+                status = "PASS" if r.success else "FAIL"
+                f.write(f"{r.name:<25} {r.dimension:<5} {r.degree:<5} {r.tolerance:<10.2e} "
+                        f"{r.max_depth_used:<7} {r.boxes_processed:<8} {r.solve_time:<12.6f} "
+                        f"{r.max_error:<12.2e} {status:<8}\n")
+
+            f.write("=" * 120 + "\n")
+            f.write(f"Total solve time ({method.upper()}): {sum(r.solve_time for r in method_results):.6f}s\n")
+            f.write("\n")
 
         # Detailed results for each example
+        f.write("\n")
         f.write("=" * 120 + "\n")
         f.write("DETAILED RESULTS\n")
         f.write("=" * 120 + "\n\n")
 
-        for i, r in enumerate(results, 1):
-            f.write(f"[{i}] {r.name}\n")
+        for example in examples:
+            # Get results for this example
+            example_results = [r for r in results if r.name == example.name]
+
+            f.write(f"{example.name}\n")
             f.write("-" * 80 + "\n")
-            f.write(f"  Description: {examples[i-1].description}\n")
+            f.write(f"  Description: {example.description}\n")
             f.write(f"\n")
+
+            # Problem parameters (same for all methods)
+            r0 = example_results[0]
             f.write(f"  Problem Parameters:\n")
-            f.write(f"    Dimension: {r.dimension}D\n")
-            f.write(f"    Degree: {r.degree}\n")
-            f.write(f"    Tolerance: {r.tolerance:.2e}\n")
+            f.write(f"    Dimension: {r0.dimension}D\n")
+            f.write(f"    Degree: {r0.degree}\n")
+            f.write(f"    Tolerance: {r0.tolerance:.2e}\n")
+            f.write(f"    Expected solutions: {r0.expected_solutions}\n")
             f.write(f"\n")
-            f.write(f"  Results:\n")
-            f.write(f"    Expected solutions: {r.expected_solutions}\n")
-            f.write(f"    Found solutions: {r.found_solutions}\n")
-            f.write(f"    Success: {'PASS' if r.success else 'FAIL'}\n")
-            f.write(f"\n")
-            f.write(f"  Performance:\n")
-            f.write(f"    Setup time: {r.setup_time:.6f}s\n")
-            f.write(f"    Solve time (runtime): {r.solve_time:.6f}s\n")
-            f.write(f"    Total time: {r.total_time:.6f}s\n")
-            f.write(f"\n")
-            f.write(f"  Solver Statistics:\n")
-            f.write(f"    Steps (boxes processed): {r.boxes_processed}\n")
-            f.write(f"    Boxes pruned: {r.boxes_pruned}\n")
-            f.write(f"    Subdivisions: {r.subdivisions}\n")
-            f.write(f"    Max depth used: {r.max_depth_used}\n")
-            f.write(f"\n")
-            f.write(f"  Accuracy:\n")
-            f.write(f"    Max error: {r.max_error:.6e}\n")
-            f.write(f"    Avg error: {r.avg_error:.6e}\n")
-            f.write(f"\n")
-            if r.notes:
-                f.write(f"  Notes: {r.notes}\n")
+
+            # Results for each method
+            for r in example_results:
+                f.write(f"  Method: {r.method}\n")
+                f.write(f"    Found solutions: {r.found_solutions}\n")
+                f.write(f"    Success: {'PASS' if r.success else 'FAIL'}\n")
+                f.write(f"    Solve time: {r.solve_time:.6f}s\n")
+                f.write(f"    Boxes processed: {r.boxes_processed}\n")
+                f.write(f"    Boxes pruned: {r.boxes_pruned}\n")
+                f.write(f"    Subdivisions: {r.subdivisions}\n")
+                f.write(f"    Max depth used: {r.max_depth_used}\n")
+                f.write(f"    Max error: {r.max_error:.6e}\n")
+                f.write(f"    Avg error: {r.avg_error:.6e}\n")
+                if r.notes:
+                    f.write(f"    Notes: {r.notes}\n")
                 f.write(f"\n")
 
     print(f"\n{'=' * 80}")

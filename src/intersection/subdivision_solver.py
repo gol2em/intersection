@@ -179,8 +179,14 @@ class SubdivisionSolver:
 
         Uses linear programming to find tighter bounds than PP method.
 
-        TODO: Implement LP-based bounding method.
-        For now, falls back to PP method.
+        For a system of equations, a root must lie in the INTERSECTION of
+        the convex hulls of control points for each equation.
+
+        For each dimension j:
+        1. Minimize/maximize x_j
+        2. Subject to: for EACH equation i, (x_0, ..., x_{k-1}, 0) is in
+           the convex hull of that equation's control points
+        3. This requires separate λ^i variables for each equation
 
         Parameters
         ----------
@@ -192,9 +198,175 @@ class SubdivisionSolver:
         Optional[List[Tuple[float, float]]]
             Bounding box in [0,1]^k space, or None if no roots exist
         """
-        # TODO: Implement LP method
-        # For now, use PP as fallback
-        return self._find_bounding_box_pp(coeffs_list)
+        try:
+            from scipy.optimize import linprog
+        except ImportError:
+            # scipy not available - cannot use LP method
+            if self.config.verbose:
+                print("Warning: scipy not available, LP method requires scipy")
+            return None
+
+        if not coeffs_list:
+            return None
+
+        # Quick check: if any equation has all coefficients with same sign, no root
+        for coeffs in coeffs_list:
+            c_min = np.min(coeffs)
+            c_max = np.max(coeffs)
+            if c_min > self.config.subdivision_tolerance:
+                return None
+            if c_max < -self.config.subdivision_tolerance:
+                return None
+
+        # Initialize bounding box as full [0,1]^k
+        bounding_box = [(0.0, 1.0) for _ in range(self.k)]
+
+        # For each dimension, find bounds using LP over ALL equations simultaneously
+        for dim in range(self.k):
+            bounds = self._lp_bounds_for_dimension_all_equations(coeffs_list, dim)
+
+            if bounds is None:
+                # No solution possible
+                return None
+
+            bounding_box[dim] = bounds
+
+        return bounding_box
+
+    def _lp_bounds_for_dimension_all_equations(self,
+                                               coeffs_list: List[np.ndarray],
+                                               dim: int) -> Optional[Tuple[float, float]]:
+        """
+        Compute LP-based bounds for a single dimension across ALL equations.
+
+        The correct LP formulation for a system of equations:
+        - For each equation i, we have control points (t_0, ..., t_{k-1}, f_i)
+        - A root must lie in the INTERSECTION of all convex hulls
+        - For each equation i, we need separate λ^i variables
+
+        To find min/max of x_j:
+        - Minimize/Maximize x_j
+        - Subject to: for EACH equation i:
+          - (x_0, ..., x_{k-1}, 0) = Σ_m λ^i_m · control_point^i_m
+          - Σ_m λ^i_m = 1
+          - λ^i_m ≥ 0
+
+        Parameters
+        ----------
+        coeffs_list : List[np.ndarray]
+            Bernstein coefficients for all equations
+        dim : int
+            Dimension index (0 to k-1)
+
+        Returns
+        -------
+        Optional[Tuple[float, float]]
+            (t_min, t_max) bounds for this dimension, or None if no roots possible
+        """
+        from scipy.optimize import linprog
+
+        # Build control points for each equation
+        all_control_points = []
+        num_points_per_eq = []
+
+        for coeffs in coeffs_list:
+            shape = coeffs.shape
+            control_points = []
+
+            for multi_idx in np.ndindex(shape):
+                # Compute parameter values for this control point
+                t_values = []
+                for j in range(self.k):
+                    i_j = multi_idx[j]
+                    n_j = shape[j]
+                    if n_j == 1:
+                        t_j = 0.5
+                    else:
+                        t_j = i_j / (n_j - 1)
+                    t_values.append(t_j)
+
+                # Function value
+                f_value = coeffs[multi_idx]
+
+                # Control point is (t_0, ..., t_{k-1}, f)
+                control_point = t_values + [f_value]
+                control_points.append(control_point)
+
+            all_control_points.append(np.array(control_points))
+            num_points_per_eq.append(len(control_points))
+
+        # Variables: [λ^0_0, ..., λ^0_{M0}, λ^1_0, ..., λ^1_{M1}, ..., x_0, ..., x_{k-1}]
+        # Total: sum(num_points_per_eq) + k
+        total_lambda_vars = sum(num_points_per_eq)
+        total_vars = total_lambda_vars + self.k
+
+        # Objective: minimize x_dim
+        c = np.zeros(total_vars)
+        c[total_lambda_vars + dim] = 1.0
+
+        # Build constraints
+        A_eq = []
+        b_eq = []
+
+        # For each equation i:
+        lambda_offset = 0
+        for eq_idx, control_points in enumerate(all_control_points):
+            num_points = num_points_per_eq[eq_idx]
+
+            # Constraint: Σ λ^i_m = 1
+            row = np.zeros(total_vars)
+            row[lambda_offset:lambda_offset + num_points] = 1.0
+            A_eq.append(row)
+            b_eq.append(1.0)
+
+            # Constraint: For each dimension j, x_j = Σ λ^i_m · t_j^m
+            for j in range(self.k):
+                row = np.zeros(total_vars)
+                # Coefficients for λ^i variables
+                row[lambda_offset:lambda_offset + num_points] = control_points[:, j]
+                # Coefficient for x_j variable
+                row[total_lambda_vars + j] = -1.0
+                A_eq.append(row)
+                b_eq.append(0.0)
+
+            # Constraint: 0 = Σ λ^i_m · f^i_m
+            row = np.zeros(total_vars)
+            row[lambda_offset:lambda_offset + num_points] = control_points[:, self.k]
+            A_eq.append(row)
+            b_eq.append(0.0)
+
+            lambda_offset += num_points
+
+        A_eq = np.array(A_eq)
+        b_eq = np.array(b_eq)
+
+        # Bounds: λ^i_m ≥ 0, x_j ∈ [0, 1]
+        bounds = [(0, None)] * total_lambda_vars + [(0, 1)] * self.k
+
+        # Solve LP for minimum
+        result_min = linprog(c, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+
+        if not result_min.success:
+            # No feasible solution
+            return None
+
+        t_min = result_min.x[total_lambda_vars + dim]
+
+        # Solve LP for maximum (negate objective)
+        c_max = -c
+        result_max = linprog(c_max, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+
+        if not result_max.success:
+            # No feasible solution
+            return None
+
+        t_max = result_max.x[total_lambda_vars + dim]
+
+        # Ensure t_min <= t_max
+        if t_min > t_max:
+            t_min, t_max = t_max, t_min
+
+        return (t_min, t_max)
 
     def _find_bounding_box_hybrid(self,
                                  coeffs_list: List[np.ndarray]) -> Optional[List[Tuple[float, float]]]:

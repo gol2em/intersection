@@ -7,10 +7,6 @@
     <list default="true" id="3350f824-380d-4ac6-b715-37d7d71c0979" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/AugmentWebviewStateStore.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/AugmentWebviewStateStore.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/test_c_minus_1e4.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/test_high_degree_varying_c.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/test_multiplicity_limits.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/test_multiplicity_limits.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/test_single_c.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
